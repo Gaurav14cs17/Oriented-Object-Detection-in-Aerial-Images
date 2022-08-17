@@ -27,7 +27,7 @@ class BCELoss(nn.Module):
                                                                                                                    |
                                                                                                                    |
                                                                                                                    V
-                                                                                                       [ B , HxW[N] , output_feature ]
+                                                                                                          [ B , HxW[N] , output_feature ]
         '''
         feat = feat.permute(0, 2, 3, 1).contiguous()
         feat = feat.view(feat.size(0), -1, feat.size(3))
