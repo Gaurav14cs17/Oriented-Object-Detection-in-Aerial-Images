@@ -35,10 +35,6 @@ class BCELoss(nn.Module):
         return feat
 
     def forward(self, output, mask, ind, target):
-        # torch.Size([1, 1, 152, 152])
-        # torch.Size([1, 500])
-        # torch.Size([1, 500])
-        # torch.Size([1, 500, 1])
         pred = self._tranpose_and_gather_feat(output, ind)  # torch.Size([1, 500, 1])
         if mask.sum():
             mask = mask.unsqueeze(2).expand_as(pred).bool()
@@ -82,16 +78,10 @@ class OffSmoothL1Loss(nn.Module):
         return feat
 
     def forward(self, output, mask, ind, target):
-        # torch.Size([1, 2, 152, 152])
-        # torch.Size([1, 500])
-        # torch.Size([1, 500])
-        # torch.Size([1, 500, 2])
         pred = self._tranpose_and_gather_feat(output, ind)  # torch.Size([1, 500, 2])
         if mask.sum():
             mask = mask.unsqueeze(2).expand_as(pred).bool()
-            loss = F.smooth_l1_loss(pred.masked_select(mask),
-                                    target.masked_select(mask),
-                                    reduction='mean')
+            loss = F.smooth_l1_loss(pred.masked_select(mask),target.masked_select(mask),reduction='mean')
             return loss
         else:
             return 0.
@@ -135,19 +125,11 @@ class LossAll(torch.nn.Module):
         wh_loss = self.L_wh(pr_decs['wh'], gt_batch['reg_mask'], gt_batch['ind'], gt_batch['wh'])
         off_loss = self.L_off(pr_decs['reg'], gt_batch['reg_mask'], gt_batch['ind'], gt_batch['reg'])
         ## add
-        cls_theta_loss = self.L_cls_theta(pr_decs['cls_theta'], gt_batch['reg_mask'], gt_batch['ind'],
-                                          gt_batch['cls_theta'])
-
+        cls_theta_loss = self.L_cls_theta(pr_decs['cls_theta'], gt_batch['reg_mask'], gt_batch['ind'],gt_batch['cls_theta'])
         if isnan(hm_loss) or isnan(wh_loss) or isnan(off_loss):
             print('hm loss is {}'.format(hm_loss))
             print('wh loss is {}'.format(wh_loss))
             print('off loss is {}'.format(off_loss))
-
-        # print(hm_loss)
-        # print(wh_loss)
-        # print(off_loss)
-        # print(cls_theta_loss)
-        # print('-----------------')
 
         loss = hm_loss + wh_loss + off_loss + cls_theta_loss
         return loss
