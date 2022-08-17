@@ -89,15 +89,18 @@ class BaseDataset(data.Dataset):
                                crop_size=crop_size,
                                dst_size=(self.input_w, self.input_h),
                                inverse=False,
-                               rotation=True)
+                               rotation=True) #[3x3]
 
         image = cv2.warpAffine(src=image, M=M, dsize=(self.input_w, self.input_h), flags=cv2.INTER_LINEAR)
         if annotation['pts'].shape[0]:
-            annotation['pts'] = np.concatenate(
-                [annotation['pts'], np.ones((annotation['pts'].shape[0], annotation['pts'].shape[1], 1))], axis=2)
+            annotation['pts'] = np.concatenate([annotation['pts'], np.ones((annotation['pts'].shape[0], annotation['pts'].shape[1], 1))], axis=2)
+            '''
+            [Nx4x2]--> [Nx4x3]
+            '''
             annotation['pts'] = np.matmul(annotation['pts'], np.transpose(M))
-            print(M.shape, annotation['pts'].shape)
-            exit()
+            '''
+             [Nx4x3]x[3x3]----> [Nx4x3] Ex: [Nx4x(x , y , theta)]
+            '''
             annotation['pts'] = np.asarray(annotation['pts'], np.float32)
 
         out_annotations = {}
@@ -107,11 +110,12 @@ class BaseDataset(data.Dataset):
         for pt_old, cat in zip(annotation['pts'], annotation['cat']):
             if (pt_old < 0).any() or (pt_old[:, 0] > self.input_w - 1).any() or (pt_old[:, 1] > self.input_h - 1).any():
                 pt_new = pt_old.copy()
-                pt_new[:, 0] = np.minimum(np.maximum(pt_new[:, 0], 0.), self.input_w - 1)
-                pt_new[:, 1] = np.minimum(np.maximum(pt_new[:, 1], 0.), self.input_h - 1)
+                pt_new[:, 0] = np.minimum(np.maximum(pt_new[:, 0], 0.), self.input_w - 1) #check boundry conditions
+                pt_new[:, 1] = np.minimum(np.maximum(pt_new[:, 1], 0.), self.input_h - 1) # check Boundry conditions
                 iou = ex_box_jaccard(pt_old.copy(), pt_new.copy())
                 if iou > 0.6:
-                    rect = cv2.minAreaRect(pt_new / self.down_ratio)
+                    rect = cv2.minAreaRect(pt_new / self.down_ratio) # https://theailearner.com/tag/cv2-minarearect/
+                    # min rect return :  cx, cy , w , h , theta
                     if rect[1][0] > size_thresh and rect[1][1] > size_thresh:
                         out_rects.append([rect[0][0], rect[0][1], rect[1][0], rect[1][1], rect[2]])
                         out_cat.append(cat)
@@ -134,15 +138,17 @@ class BaseDataset(data.Dataset):
         image_h = self.input_h // self.down_ratio
         image_w = self.input_w // self.down_ratio
 
-        hm = np.zeros((self.num_classes, image_h, image_w), dtype=np.float32)
-        wh = np.zeros((self.max_objs, 10), dtype=np.float32)
+        hm = np.zeros((self.num_classes, image_h, image_w), dtype=np.float32) #[ C , H , W ]
+        wh = np.zeros((self.max_objs, 10), dtype=np.float32) #[N , 10 ]
         ## add
-        cls_theta = np.zeros((self.max_objs, 1), dtype=np.float32)
+        cls_theta = np.zeros((self.max_objs, 1), dtype=np.float32)  #[N , 1]
         ## add end
-        reg = np.zeros((self.max_objs, 2), dtype=np.float32)
-        ind = np.zeros((self.max_objs), dtype=np.int64)
-        reg_mask = np.zeros((self.max_objs), dtype=np.uint8)
-        num_objs = min(annotation['rect'].shape[0], self.max_objs)
+        reg = np.zeros((self.max_objs, 2), dtype=np.float32) #[N , 2]
+        ind = np.zeros((self.max_objs), dtype=np.int64) #[N ]
+        reg_mask = np.zeros((self.max_objs), dtype=np.uint8) #[N]
+
+        num_objs = min(annotation['rect'].shape[0], self.max_objs) # Number of object persent in Image
+
         # ###################################### view Images #######################################
         # copy_image1 = cv2.resize(image, (image_w, image_h))
         # copy_image2 = copy_image1.copy()
@@ -156,18 +162,19 @@ class BaseDataset(data.Dataset):
             ct = np.asarray([cen_x, cen_y], dtype=np.float32)
             ct_int = ct.astype(np.int32)
             draw_umich_gaussian(hm[annotation['cat'][k]], ct_int, radius)
+
             ind[k] = ct_int[1] * image_w + ct_int[0]
             reg[k] = ct - ct_int
             reg_mask[k] = 1
             # generate wh ground_truth
-            pts_4 = cv2.boxPoints(((cen_x, cen_y), (bbox_w, bbox_h), theta))  # 4 x 2
+            pts_4 = cv2.boxPoints(((cen_x, cen_y), (bbox_w, bbox_h), theta))  # [4 x 2]
 
             bl = pts_4[0, :]
             tl = pts_4[1, :]
             tr = pts_4[2, :]
             br = pts_4[3, :]
 
-            tt = (np.asarray(tl, np.float32) + np.asarray(tr, np.float32)) / 2
+            tt = (np.asarray(tl, np.float32) + np.asarray(tr, np.float32)) / 2  # ( [a + b] //2 )
             rr = (np.asarray(tr, np.float32) + np.asarray(br, np.float32)) / 2
             bb = (np.asarray(bl, np.float32) + np.asarray(br, np.float32)) / 2
             ll = (np.asarray(tl, np.float32) + np.asarray(bl, np.float32)) / 2
@@ -176,6 +183,9 @@ class BaseDataset(data.Dataset):
                 tt, rr, bb, ll = self.reorder_pts(tt, rr, bb, ll)
             # rotational channel
             wh[k, 0:2] = tt - ct
+            '''
+            [(x, y) - (Cx , Cy) --> ( W , H ) ]  
+            '''
             wh[k, 2:4] = rr - ct
             wh[k, 4:6] = bb - ct
             wh[k, 6:8] = ll - ct
@@ -188,7 +198,7 @@ class BaseDataset(data.Dataset):
             #####################################################################################
             # horizontal channel
             w_hbbox, h_hbbox = self.cal_bbox_wh(pts_4)
-            wh[k, 8:10] = 1. * w_hbbox, 1. * h_hbbox
+            wh[k, 8:10] = 1. * w_hbbox, 1. * h_hbbox   # ( W , H )
             #####################################################################################
             # # draw
             # cv2.line(copy_image2, (cen_x, cen_y), (int(cen_x), int(cen_y-wh[k, 9]/2)), (0, 0, 255), 1, 1)
