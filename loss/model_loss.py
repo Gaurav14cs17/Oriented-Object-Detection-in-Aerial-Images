@@ -82,10 +82,6 @@ class OffSmoothL1Loss(nn.Module):
         return feat
 
     def forward(self, output, mask, ind, target):
-        # torch.Size([1, 2, 152, 152])
-        # torch.Size([1, 500])
-        # torch.Size([1, 500])
-        # torch.Size([1, 500, 2])
         pred = self._tranpose_and_gather_feat(output, ind)  # torch.Size([1, 500, 2])
         if mask.sum():
             mask = mask.unsqueeze(2).expand_as(pred).bool()
