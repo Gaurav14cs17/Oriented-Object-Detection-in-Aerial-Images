@@ -4,7 +4,6 @@ import cv2
 
 def random_flip(image, gt_pts, crop_center=None):
     h, w, c = image.shape
-
     # flip by x-axis...........
     if np.random.random() < 0.5:
         image = image[:, ::-1, :]
@@ -70,6 +69,17 @@ def get_3rd_point(a, b):
 
 
 def load_affine_matrix(crop_center, crop_size, dst_size, inverse=False, rotation=False):
+    '''
+    :param crop_center:
+    :param crop_size:
+    :param dst_size:
+    :param inverse:
+    :param rotation:
+    :return:
+
+
+    https://www.comp.nus.edu.sg/~cs4243/lecture/register.pdf
+    '''
     dst_center = np.array([dst_size[0] // 2, dst_size[1] // 2], dtype=np.float32)
     if rotation and np.random.rand(1) > 0.5:
         random_degree = np.random.rand(1)[0] * 90

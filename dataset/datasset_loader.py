@@ -1,43 +1,22 @@
-from .base import BaseDataset
+import torch
+
+from base import BaseDataset
 import os
 import cv2
 import numpy as np
 
 
 class DOTA(BaseDataset):
-    def __init__(self, data_dir, phase, input_h=None, input_w=None, down_ratio=None):
+    def __init__(self, data_dir, phase='train', input_h=None, input_w=None, down_ratio=None):
         super(DOTA, self).__init__(data_dir, phase, input_h, input_w, down_ratio)
-        self.category = ['plane',
-                         'baseball-diamond',
-                         'bridge',
-                         'ground-track-field',
-                         'small-vehicle',
-                         'large-vehicle',
-                         'ship',
-                         'tennis-court',
-                         'basketball-court',
-                         'storage-tank',
-                         'soccer-ball-field',
-                         'roundabout',
-                         'harbor',
-                         'swimming-pool',
-                         'helicopter'
+        self.category = ['Tooth',
+                         'Restoration',
+                         'RCT',
                          ]
+
         self.color_pans = [(204, 78, 210),
                            (0, 192, 255),
-                           (0, 131, 0),
-                           (240, 176, 0),
-                           (254, 100, 38),
-                           (0, 0, 255),
-                           (182, 117, 46),
-                           (185, 60, 129),
-                           (204, 153, 255),
-                           (80, 208, 146),
-                           (0, 0, 204),
-                           (17, 90, 197),
-                           (0, 255, 255),
-                           (102, 255, 102),
-                           (255, 255, 0)]
+                           (0, 131, 0)]
 
         self.num_classes = len(self.category)
         self.cat_ids = {cat: i for i, cat in enumerate(self.category)}
@@ -60,11 +39,13 @@ class DOTA(BaseDataset):
 
     def load_image(self, index):
         image_id = self.img_ids[index]
-        image_file_path = os.path.join(self.image_path, image_id + '.png')
+        image_file_path = os.path.join(self.image_path, image_id + '.jpg')
         assert os.path.exists(image_file_path), "image {} not existed".format(image_file_path)
         return cv2.imread(image_file_path)
 
-    def load_annoFolder(self, image_id):
+    def load_annoFolder(self, index):
+        image_id = self.img_ids[index]
+        print(self.label_path, image_id )
         ann_txt_path = os.path.join(self.label_path, image_id + ".txt")
         assert os.path.exists(ann_txt_path), "Ann file {} not existed".format(ann_txt_path)
         return ann_txt_path
@@ -110,6 +91,10 @@ class DOTA(BaseDataset):
         return annotation
 
 
-
-
-
+if __name__ == '__main__':
+    data_dir_path = "/media/gaurav/DATA/labs/Oriented-Object-Detection-in-Aerial-Images/DATA/"
+    data_dir_object = DOTA(data_dir_path , phase='train',input_h=512 , input_w=512 , down_ratio=4)
+    for idx in range(len(data_dir_object)):
+        obj = data_dir_object[idx]
+        print(obj)
+        break
