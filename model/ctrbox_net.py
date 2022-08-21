@@ -14,7 +14,6 @@ class CTRBOX(nn.Module):
         self.base_network = resnet.resnet101(pretrained=pretrained)
         '''
         --->up(x)-->conv--> cat--> conv_layer
-        
         '''
         self.dec_c2 = CombinationModule(512, 256, batch_norm=True)
         self.dec_c3 = CombinationModule(1024, 512, batch_norm=True)
